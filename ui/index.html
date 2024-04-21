@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Bookmarks</title>
+    <script src="https://unpkg.com/vue@3"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <h3>
+            Bookmark List Demo
+        </h3>
+        <div class="btns">
+            <button @click="listBookmarks()">Query</button>
+            <button @click="exportJson()">Export JSON</button>
+            <button @click="exportXml()">Export XML</button>            
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Title</th>
+                    <th>Url</th>
+                    <th></th>
+                </tr>
+                <tr>
+                    <td>New</td>
+                    <td><input type="text" v-model="title" placeholder="input title here"></td>
+                    <td><input type="text" v-model="url" placeholder="input url here"></td>
+                    <td>
+                        <button @click="addBookmark">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </td>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="bookmark in bookmarks" :key="bookmark.id">
+                    <td>{{ bookmark.id }}</td>
+                    <td>{{ bookmark.title }}</td>
+                    <td>{{ bookmark.url }}</td>
+                    <td>
+                        <button @click="removeBookmark(bookmark.id)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script>
+        const app = Vue.createApp({
+            data() {
+                return {
+                    title: '',
+                    url: '',
+                    bookmarks: []
+                }
+            },
+            methods: {
+                listBookmarks() {
+                    fetch('/bookmarks/list').then(response => response.json()).then(data => {
+                        this.bookmarks = data
+                    })
+                },
+                addBookmark() {
+                    const self = this;
+                    fetch('/bookmarks/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            title: this.title,
+                            url: this.url
+                        })
+                    }).then(response => response.json()).then(data => {
+                        self.bookmarks.push(data);
+                        self.title = ''
+                        self.url = ''
+                    })
+                },
+                removeBookmark(id) {
+                    const self = this;
+                    fetch(`/bookmarks/remove/${id}`, {
+                        method: 'POST'
+                    }).then(response => {
+                        if (response.ok) {
+                            self.bookmarks = self.bookmarks.filter(bookmark => bookmark.id !== id)
+                        }
+                    })
+                },
+                exportJson() {
+                    fetch('/export/json').then(response => response.json()).then(data => {
+                        const blob = new Blob([JSON.stringify(data)], {
+                            type: 'application/json'
+                        });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'bookmarks.json';
+                        a.click();
+                    })
+                },
+                exportXml() {
+                    fetch('/export/xml').then(response => response.text()).then(data => {
+                        const blob = new Blob([data], {
+                            type: 'application/xml'
+                        });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'bookmarks.xml';
+                        a.click();
+                    })
+                }
+            }
+        })
+        const vm = app.mount('#app');
+        vm.listBookmarks();
+    </script>
+</body>
+
+</html>

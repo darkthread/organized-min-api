@@ -1,0 +1,27 @@
+html,
+body {
+    font-size: 10pt;
+}
+
+#app { width: 480px; }
+
+.btns {
+    text-align: right;
+    margin-bottom: 6px;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+
+    td,th {
+        border: 1px solid gray;
+        padding: 3px;
+    }
+    th {
+        background-color: #f0f0f0;
+    }
+    td:first-child {
+        text-align: center;
+    }
+}
