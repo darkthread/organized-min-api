@@ -6,6 +6,8 @@
     <title>Bookmarks</title>
     <script src="https://unpkg.com/vue@3"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.min.js"></script>
     <link href="style.css" rel="stylesheet">
 </head>
 
@@ -16,8 +18,8 @@
         </h3>
         <div class="btns">
             <button @click="listBookmarks()">Query</button>
-            <button @click="exportJson()">Export JSON</button>
-            <button @click="exportXml()">Export XML</button>            
+            <button @click="exportJson()" class="export-json">Export JSON</button>
+            <button @click="exportXml()" class="export-xml">Export XML</button>
         </div>
         <table>
             <thead>
@@ -27,7 +29,7 @@
                     <th>Url</th>
                     <th></th>
                 </tr>
-                <tr>
+                <tr class="new">
                     <td>New</td>
                     <td><input type="text" v-model="title" placeholder="input title here"></td>
                     <td><input type="text" v-model="url" placeholder="input url here"></td>
@@ -51,8 +53,45 @@
                 </tr>
             </tbody>
         </table>
+
+        <button onclick="RunTest(this)" style="margin-top: 12px; color: orangered;">
+            Run Test
+        </button>
     </div>
     <script>
+        function showErorrs(errs) {
+
+        }
+        const callApi = async (url, postData) => {
+            const promise = new Promise(async (resolve, reject) => {
+                try {
+                    const fetchOptions = postData === undefined ? {
+                        method: 'GET'
+                    } : {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(postData)
+                    };
+                    const resp = await fetch(url, fetchOptions);
+                    if (!resp.headers.get('Content-Type')?.includes('application/json'))
+                        throw { message: resp.status + ' ' + resp.statusText };
+                    const data = await resp.json();
+                    if (!resp.ok) throw data;
+                    resolve(data);
+                } catch (err) {
+                    let errs = Array.isArray(err) ? err : [err];
+                    errs.forEach(e => {
+                        new Noty({
+                            type: 'error',
+                            text: e.message || e.errorMessage || e,
+                            timeout: 2000
+                        }).show();
+                    });
+                    reject(err);
+                }
+            });
+            return promise;
+        };
         const app = Vue.createApp({
             data() {
                 return {
@@ -63,65 +102,90 @@
             },
             methods: {
                 listBookmarks() {
-                    fetch('/bookmarks/list').then(response => response.json()).then(data => {
-                        this.bookmarks = data
-                    })
+                    callApi('/bookmarks/list')
+                        .then(data => this.bookmarks = data)
                 },
                 addBookmark() {
-                    const self = this;
-                    fetch('/bookmarks/add', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            title: this.title,
-                            url: this.url
-                        })
-                    }).then(response => response.json()).then(data => {
-                        self.bookmarks.push(data);
-                        self.title = ''
-                        self.url = ''
-                    })
+                    callApi('/bookmarks/add', {
+                        title: this.title,
+                        url: this.url
+                    }).then(data => {
+                        this.bookmarks.push(data);
+                        this.title = '';
+                        this.url = '';
+                    });
                 },
                 removeBookmark(id) {
-                    const self = this;
-                    fetch(`/bookmarks/remove/${id}`, {
-                        method: 'POST'
-                    }).then(response => {
-                        if (response.ok) {
-                            self.bookmarks = self.bookmarks.filter(bookmark => bookmark.id !== id)
-                        }
-                    })
+                    callApi(`/bookmarks/remove/${id}`, {}, 'POST')
+                        .then(() => this.bookmarks = this.bookmarks.filter(bookmark => bookmark.id !== id));
                 },
                 exportJson() {
-                    fetch('/export/json').then(response => response.json()).then(data => {
-                        const blob = new Blob([JSON.stringify(data)], {
-                            type: 'application/json'
+                    callApi('/export/json')
+                        .then(data => {
+                            const blob = new Blob([JSON.stringify(data)], {
+                                type: 'application/json'
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'bookmarks.json';
+                            a.click();
                         });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'bookmarks.json';
-                        a.click();
-                    })
                 },
                 exportXml() {
-                    fetch('/export/xml').then(response => response.text()).then(data => {
-                        const blob = new Blob([data], {
-                            type: 'application/xml'
+                    callApi('/export/xml')
+                        .then(data => {
+                            const blob = new Blob([data], {
+                                type: 'application/xml'
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'bookmarks.xml';
+                            a.click();
                         });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'bookmarks.xml';
-                        a.click();
-                    })
                 }
             }
         })
         const vm = app.mount('#app');
         vm.listBookmarks();
+    </script>
+    <script>
+        function RunTest(btn) {
+            btn.remove();
+            const focusCss = 'focus';
+            const fill = (selector, propName, value, delay) => {
+                const input = document.querySelector(selector);
+                input.classList.add(focusCss);
+                input.value = value;
+                if (propName) vm[propName] = value;
+                return delay;
+            };
+            const click = (selector, delay) => {
+                let btn = document.querySelector(selector);
+                if (btn.tagName !== 'BUTTON') btn = btn.parentElement;
+                btn.classList.add(focusCss);
+                setTimeout(() => btn.click(), delay / 3);
+                return delay;
+            };
+            const steps = [
+                () => fill('input[placeholder="input title here"]', 'title', 'Invalid Url', 1000),
+                () => fill('input[placeholder="input url here"]', 'url', 'not-a-url', 1000),
+                () => click('button i.fa-plus', 3000),
+                () => fill('input[placeholder="input title here"]', 'title', 'darkthread', 1000),
+                () => fill('input[placeholder="input url here"]', 'url', 'https://blog.darkthread.net', 1000),
+                () => click('button i.fa-plus', 3000),
+                () => click('button i.fa-trash', 3000),
+                () => click('button.export-json', 3000)
+            ];
+            const executor = () => {
+                document.querySelectorAll('.' + focusCss).forEach(e => e.classList.remove(focusCss));
+                if (steps.length === 0) return;
+                const delay = steps.shift()();
+                setTimeout(executor, delay);
+            };
+            executor();
+        }
     </script>
 </body>
 

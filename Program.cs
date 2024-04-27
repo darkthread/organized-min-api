@@ -1,10 +1,13 @@
+using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using MinApiDemo;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var cs = "Data Source=bookmark.sqlite";
+var sqliteFileName = "bookmark.sqlite";
+if (File.Exists(sqliteFileName)) File.Delete(sqliteFileName);
+var cs = $"Data Source={sqliteFileName}";
 
 builder.Services.AddDbContext<AppDbContext>(options => {
     options.UseSqlite(cs);
@@ -38,6 +41,9 @@ app.MapGet("/bookmarks/list", async (AppDbContext db) => {
     return Results.Json(await db.Bookmarks.ToListAsync());
 });
 app.MapPost("/bookmarks/add", async (AppDbContext db, Bookmark bookmark) => {
+    var results = new List<ValidationResult>();
+    var isValid = Validator.TryValidateObject(bookmark, new ValidationContext(bookmark), results, true);
+    if (!isValid) return Results.BadRequest(results);
     db.Bookmarks.Add(bookmark);
     await db.SaveChangesAsync();
     return Results.Json(bookmark);
@@ -47,7 +53,7 @@ app.MapPost("/bookmarks/remove/{id}", async (AppDbContext db, int id) => {
     if (bookmark == null) return Results.NotFound();
     db.Bookmarks.Remove(bookmark);
     await db.SaveChangesAsync();
-    return Results.Ok();
+    return Results.Ok("OK");
 });
 app.MapGet("/export/json", async (AppDbContext db) => {
     var bookmarks = await db.Bookmarks.ToListAsync();

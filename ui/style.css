@@ -24,4 +24,12 @@ table {
     td:first-child {
         text-align: center;
     }
+    tr.new {
+        background-color:#ddd;
+    }
+}
+
+.focus {
+    border: 1px solid red;
+    background-color: #FFC0CB44;
 }
