@@ -37,40 +37,7 @@ app.UseFileServer(new FileServerOptions {
     ) 
 });
 
-app.MapGet("/bookmarks/list", async (AppDbContext db) => {
-    return Results.Json(await db.Bookmarks.ToListAsync());
-});
-app.MapPost("/bookmarks/add", async (AppDbContext db, Bookmark bookmark) => {
-    var results = new List<ValidationResult>();
-    var isValid = Validator.TryValidateObject(bookmark, new ValidationContext(bookmark), results, true);
-    if (!isValid) return Results.BadRequest(results);
-    db.Bookmarks.Add(bookmark);
-    await db.SaveChangesAsync();
-    return Results.Json(bookmark);
-});
-app.MapPost("/bookmarks/remove/{id}", async (AppDbContext db, int id) => {
-    var bookmark = await db.Bookmarks.FindAsync(id);
-    if (bookmark == null) return Results.NotFound();
-    db.Bookmarks.Remove(bookmark);
-    await db.SaveChangesAsync();
-    return Results.Ok("OK");
-});
-app.MapGet("/export/json", async (AppDbContext db) => {
-    var bookmarks = await db.Bookmarks.ToListAsync();
-    return Results.Json(bookmarks);
-});
-app.MapGet("/export/xml", async (AppDbContext db) => {
-    var bookmarks = await db.Bookmarks.ToListAsync();
-    var xd = XDocument.Parse("<bookmarks></bookmarks>");
-    var root = xd.Root!;
-    foreach (var bookmark in bookmarks) {
-        var xe = new XElement("bookmark");
-        xe.Add(new XElement("id", bookmark.Id));
-        xe.Add(new XElement("title", bookmark.Title));
-        xe.Add(new XElement("url", bookmark.Url));
-        root.Add(xe);
-    }
-    return Results.Content(xd.ToString(), "application/xml");
-});
+app.RegisterCrudEndPoints();
+app.RegisterExportApiEndPoints();
 
 app.Run();
